@@ -1,0 +1,182 @@
+{
+  "title": "スキルマップ総合デモ（全パターン網羅）",
+  "description": "choicesTemplates の description を helpText 末尾へ追記、grid/checkboxgrid の rows は itemTemplates 参照も可。テンプレ利用と直接配列の両方を網羅。",
+  "choicesTemplates": [
+    {
+      "name": "業務-理解度軸",
+      "description": "1=未認知・用語, 2=概要理解, 3=プロセス理解, 4=要件変換, 5=業務再設計",
+      "choices": [
+        { "label": "1:未認知・用語レベル", "score": 1 },
+        { "label": "2:概要理解レベル", "score": 2 },
+        { "label": "3:プロセス理解レベル", "score": 3 },
+        { "label": "4:要件変換レベル", "score": 4 },
+        { "label": "5:業務再設計レベル", "score": 5 }
+      ]
+    },
+    {
+      "name": "技術-理解度軸",
+      "description": "1=分からない, 2=知っているが説明できない, 3=説明できるが実装できない, 4=説明・実装できる, 5=説明・実装・適用判断ができる",
+      "choices": [
+        { "label": "1:分からない", "score": 1 },
+        { "label": "2:知っているが説明できない", "score": 2 },
+        { "label": "3:説明できるが実現方法が分からない/実装できない", "score": 3 },
+        { "label": "4:説明/実現できる", "score": 4 },
+        { "label": "5:説明/実現/適用判断ができる", "score": 5 }
+      ]
+    },
+    {
+      "name": "技術-経験軸",
+      "description": "1=未経験, 2=学習のみ, 3=業務で一部担当, 4=主担当経験, 5=複数回経験・指導可能",
+      "choices": [
+        { "label": "1:未経験", "score": 1 },
+        { "label": "2:学習経験のみ", "score": 2 },
+        { "label": "3:業務利用（部分担当）", "score": 3 },
+        { "label": "4:主担当経験あり", "score": 4 },
+        { "label": "5:複数回経験あり・指導可能", "score": 5 }
+      ]
+    },
+    {
+      "name": "Yes/No",
+      "description": "はい/いいえ から選択",
+      "choices": [
+        { "label": "はい", "score": 1 },
+        { "label": "いいえ", "score": 0 }
+      ]
+    }
+  ],
+  "itemTemplates": [
+    {
+      "name": "業務テンプレ",
+      "items": ["小売", "製造", "金融", "商社", "サービス・インフラ"]
+    },
+    {
+      "name": "Java系テンプレ",
+      "items": ["Java", "Spring", "Spring Boot", "JPA/Hibernate", "JUnit"]
+    }
+  ],
+  "questions": [
+    {
+      "type": "pagebreak",
+      "title": "基本情報（テンプレ未使用の設問いろいろ）",
+      "helpText": "以下はテンプレートを使わない直接定義の例です。"
+    },
+    {
+      "type": "text",
+      "title": "氏名",
+      "required": true,
+      "helpText": "フルネームを入力してください。"
+    },
+    {
+      "type": "paragraph",
+      "title": "自己PR",
+      "required": false,
+      "helpText": "簡潔に記入してください。"
+    },
+    {
+      "type": "date",
+      "title": "入社日",
+      "required": false,
+      "helpText": "西暦で選択してください。"
+    },
+    {
+      "type": "time",
+      "title": "普段の始業予定時刻",
+      "required": false
+    },
+    {
+      "type": "scale",
+      "title": "今期の自己満足度",
+      "required": false,
+      "helpText": "1=不満, 5=満足",
+      "min": 1,
+      "max": 5,
+      "minLabel": "不満",
+      "maxLabel": "満足"
+    },
+    {
+      "type": "multiplechoice",
+      "title": "配属希望（直接配列）",
+      "required": true,
+      "helpText": "第1希望を選択してください。",
+      "choices": [
+        { "label": "B2Bアプリ", "score": 0 },
+        { "label": "コンシューマWeb", "score": 0 },
+        { "label": "基盤/共通", "score": 0 }
+      ]
+    },
+    {
+      "type": "checkbox",
+      "title": "得意領域（直接配列）",
+      "required": false,
+      "helpText": "複数選択可。",
+      "choices": [
+        { "label": "Webバックエンド", "score": 0 },
+        { "label": "フロントエンド", "score": 0 },
+        { "label": "インフラ/クラウド", "score": 0 },
+        { "label": "データベース", "score": 0 }
+      ]
+    },
+    {
+      "type": "list",
+      "title": "勤務形態（直接配列）",
+      "required": true,
+      "choices": ["常駐", "リモート", "ハイブリッド"]
+    },
+    {
+      "type": "multiplechoice",
+      "title": "Java 技術理解度",
+      "required": true,
+      "helpText": "自己評価を選んでください。",
+      "choices": "技術-理解度軸"
+    },
+    {
+      "type": "checkbox",
+      "title": "保有資格",
+      "required": false,
+      "choices": [
+        { "label": "基本情報技術者", "score": 1 },
+        { "label": "応用情報技術者", "score": 2 },
+        { "label": "AWS SAA", "score": 2 },
+        { "label": "LPIC-1", "score": 1 }
+      ]
+    },
+    {
+      "type": "list",
+      "title": "現在の稼働可否（テンプレ参照）",
+      "required": true,
+      "choices": "Yes/No"
+    },
+    {
+      "type": "grid",
+      "title": "業務理解度",
+      "required": true,
+      "helpText": "各業務の理解度を自己評価してください。",
+      "rows": "業務テンプレ",
+      "columns": "業務-理解度軸"
+    },
+    {
+      "type": "checkboxgrid",
+      "title": "技術経験",
+      "required": false,
+      "helpText": "経験レベルを該当箇所に複数チェック可。",
+      "rows": "Java系テンプレ",
+      "columns": "技術-経験軸"
+    },
+    {
+      "type": "multiplechoice",
+      "title": "勤怠申請の理解度",
+      "required": false,
+      "choices": "業務-理解度軸"
+    },
+    {
+      "type": "pagebreak",
+      "title": "自由記述・補足",
+      "helpText": "最後に自由記述です。"
+    },
+    {
+      "type": "paragraph",
+      "title": "補足・希望・今後の学習計画",
+      "required": false
+    }
+  ]
+}

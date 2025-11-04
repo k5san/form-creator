@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+  </head>
+  <body>
+    <h3>フォーム用JSONを選択してください。</h3>
+    <select id="fileList"></select>
+    <br><br>
+    <button onclick="createForm()">フォーム作成</button>
+    <script>
+      function createForm() {
+        const fileId = document.getElementById("fileList").value;
+        google.script.run.createFormFromDriveFile(fileId);
+        google.script.host.close();
+      }
+
+      // ドライブ内のファイル一覧を取得
+      google.script.run.withSuccessHandler(files => {
+        const select = document.getElementById("fileList");
+        files.forEach(f => {
+          const option = document.createElement("option");
+          option.value = f.id;
+          option.text = f.name;
+          select.appendChild(option);
+        });
+      }).getJsonFileList();
+    </script>
+  </body>
+</html>
