@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>JSON直接入力</title>
+  </head>
+  <body>
+    <h3>JSONを入力してください</h3>
+
+    <div style="margin-bottom:10px;">
+      <textarea id="jsonText" rows="10" style="width:100%;" placeholder="ここにJSONを貼り付け"></textarea>
+    </div>
+
+    <div style="margin-bottom:10px;">
+      <label>
+        <input type="checkbox" id="saveFlag" checked onchange="toggleFileName()">
+        Driveに保存する
+      </label>
+    </div>
+
+    <div style="margin-bottom:10px;">
+      <label>
+        保存する場合のファイル名（拡張子不要）：
+        <input type="text" id="fileName" value="temp">
+      </label>
+    </div>
+
+    <div>
+      <button onclick="send()">フォーム作成</button>
+    </div>
+
+    <script>
+      function toggleFileName() {
+        const save = document.getElementById("saveFlag").checked;
+        document.getElementById("fileName").disabled = !save;
+      }
+
+      function send() {
+        const json = document.getElementById("jsonText").value.trim();
+        if (!json) {
+          alert("JSONを入力してください");
+          return;
+        }
+
+        let save = document.getElementById("saveFlag").checked;
+        let name = "temp.json";
+        if (save) {
+          const fname = document.getElementById("fileName").value.trim();
+          if (!fname) {
+            alert("保存する場合はファイル名を入力してください");
+            return;
+          }
+          name = fname + ".json";
+        }
+
+        // GAS へ送信
+        google.script.run
+          .withSuccessHandler(() => google.script.host.close())
+          .withFailureHandler(err => alert("エラー: " + err.message))
+          .uploadFromText(json, name, save);
+      }
+
+      // 初期状態の活性制御
+      toggleFileName();
+    </script>
+  </body>
+</html>

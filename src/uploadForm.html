@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>JSONアップロード</title>
+  </head>
+  <body>
+    <div style="margin-bottom: 10px;">
+      <input type="file" id="file" accept=".json">
+    </div>
+
+    <div style="margin-bottom: 10px;">
+      <label>
+        <input type="checkbox" id="deleteFlag" checked>
+        フォーム作成後に JSON を削除する
+      </label>
+    </div>
+
+    <div>
+      <button onclick="send()">アップロードしてフォーム作成</button>
+    </div>
+
+    <script>
+      function send() {
+        const input = document.getElementById("file");
+        if (!input.files.length) {
+          alert("ファイルを選択してください");
+          return;
+        }
+
+        const file = input.files[0];
+        const deleteAfter = document.getElementById("deleteFlag").checked;
+        const reader = new FileReader();
+
+        reader.onload = function(e) {
+          google.script.run
+            .withSuccessHandler(() => google.script.host.close())
+            .withFailureHandler(err => alert("エラー: " + err.message))
+            .uploadFile(e.target.result, file.name, deleteAfter);
+        };
+
+        reader.onerror = () => {
+          alert("ファイルの読み込みに失敗しました");
+        };
+
+        reader.readAsDataURL(file);
+      }
+    </script>
+  </body>
+</html>

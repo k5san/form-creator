@@ -1,7 +1,9 @@
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
   ui.createMenu("JSONからGoogleForm作成")
-    .addItem("JSON選択", "showFilePicker")
+    .addItem("JSONを直接入力してフォーム作成", "showDirectJsonDialog")
+    .addItem("JSONをアップロードしてフォーム作成", "showUploadDialog")
+    .addItem("アップロード済みJSONからフォーム作成", "showFilePicker")
     .addToUi();
 
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
@@ -13,6 +15,139 @@ function showFilePicker() {
     .setWidth(400)
     .setHeight(300);
   SpreadsheetApp.getUi().showModalDialog(html, "JSONファイルを選択");
+}
+
+function showUploadDialog() {
+  const html = HtmlService.createHtmlOutputFromFile("uploadForm")
+    .setWidth(400)
+    .setHeight(200);
+  SpreadsheetApp.getUi().showModalDialog(html, "JSONファイルをアップロード");
+}
+
+function uploadFile(data, name, deleteAfter) {
+  const ui = SpreadsheetApp.getUi();
+
+  let createdFile = null;
+  let createdFormId = null;
+
+  try {
+    if (!data || typeof data !== "string") {
+      throw new Error("ファイルデータを正しく受け取れていません。");
+    }
+
+    const typeMatch = data.match(/^data:(.*?);/);
+    if (!typeMatch) {
+      throw new Error("ContentType を取得できませんでした。");
+    }
+
+    const contentType = typeMatch[1];
+    const base64 = data.split(",")[1];
+    const bytes = Utilities.base64Decode(base64);
+    const blob = Utilities.newBlob(bytes, contentType, name);
+
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    const folderName = sheet.getRange("B1").getValue();
+
+    if (!folderName) {
+      throw new Error("B1セルにフォルダ名が入力されていません。");
+    }
+
+    const folders = DriveApp.getFoldersByName(folderName);
+    if (!folders.hasNext()) {
+      throw new Error("指定されたフォルダ '" + folderName + "' が見つかりません。");
+    }
+
+    const folder = folders.next();
+    createdFile = folder.createFile(blob);
+
+    Logger.log("[INFO] アップロード済ファイルID: " + createdFile.getId());
+
+    // JSON → フォーム作成
+    createFormFromDriveFile(createdFile.getId());
+
+    // ★削除フラグが有効ならアップロードした JSON を削除
+    if (deleteAfter && createdFile) {
+      createdFile.setTrashed(true);
+      Logger.log("[INFO] JSONファイルを削除しました");
+    }
+
+    ui.alert("フォーム作成完了");
+
+  } catch (e) {
+    ui.alert("[ERROR] アップロードまたはフォーム生成に失敗: " + e.message);
+    Logger.log("[ERROR] " + e.stack);
+  }
+}
+
+function showDirectJsonDialog() {
+  const html = HtmlService.createHtmlOutputFromFile("directInput")
+    .setWidth(450)
+    .setHeight(350);
+  SpreadsheetApp.getUi().showModalDialog(html, "JSON直接入力");
+}
+
+function uploadFromText(jsonText, name, saveFlag) {
+  const ui = SpreadsheetApp.getUi();
+  let createdFile = null;
+  let targetFolder = null;
+
+  try {
+    // JSON 妥当性チェック
+    JSON.parse(jsonText);
+
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    const folderName = sheet.getRange("B1").getValue();
+
+    // ①B1フォルダを試す
+    if (folderName) {
+      try {
+        const folders = DriveApp.getFoldersByName(folderName);
+        if (folders.hasNext()) {
+          targetFolder = folders.next();
+          Logger.log("[INFO] B1指定フォルダ使用: " + folderName);
+        }
+      } catch (e) {
+        Logger.log("[WORN] B1フォルダアクセス不可: " + e.message);
+      }
+    } else {
+      Logger.log("[WORN] B1フォルダ名未入力");
+    }
+
+    // ②fallback: Spreadsheetと同一フォルダ
+    if (!targetFolder) {
+      const ssFile = DriveApp.getFileById(
+        SpreadsheetApp.getActiveSpreadsheet().getId()
+      );
+      const parents = ssFile.getParents();
+      if (!parents.hasNext()) {
+        throw new Error("スプレッドシートの親フォルダが取得できません");
+      }
+      targetFolder = parents.next();
+      Logger.log("[INFO] fallback: スプレッドシートと同一フォルダ使用");
+    }
+
+    const blob = Utilities.newBlob(jsonText, "application/json", name);
+
+    if (saveFlag) {
+      // 保存
+      createdFile = targetFolder.createFile(blob);
+      Logger.log("[INFO] JSON保存: " + createdFile.getId());
+      createFormFromDriveFile(createdFile.getId());
+    } else {
+      // 一時ファイル → フォーム生成後削除
+      createdFile = targetFolder.createFile(blob);
+      Logger.log("[INFO] 一時JSON: " + createdFile.getId());
+      createFormFromDriveFile(createdFile.getId());
+      createdFile.setTrashed(true);
+      Logger.log("[INFO] 一時JSONを削除しました");
+    }
+
+    ui.alert("フォーム作成完了（直接入力）");
+
+  } catch (e) {
+    ui.alert("[ERROR] JSON解析またはフォーム生成失敗: " + e.message);
+    Logger.log("[ERROR] " + e.stack);
+  }
 }
 
 /**
