@@ -5,9 +5,6 @@ function onOpen() {
     .addItem("JSONをアップロードしてフォーム作成", "showUploadDialog")
     .addItem("アップロード済みJSONからフォーム作成", "showFilePicker")
     .addToUi();
-
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  sheet.getRange("B2").setValue("");
 }
 
 function showFilePicker() {
@@ -45,19 +42,7 @@ function uploadFile(data, name, deleteAfter) {
     const bytes = Utilities.base64Decode(base64);
     const blob = Utilities.newBlob(bytes, contentType, name);
 
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-    const folderName = sheet.getRange("B1").getValue();
-
-    if (!folderName) {
-      throw new Error("B1セルにフォルダ名が入力されていません。");
-    }
-
-    const folders = DriveApp.getFoldersByName(folderName);
-    if (!folders.hasNext()) {
-      throw new Error("指定されたフォルダ '" + folderName + "' が見つかりません。");
-    }
-
-    const folder = folders.next();
+    const folder = DriveApp.getRootFolder();
     createdFile = folder.createFile(blob);
 
     Logger.log("[INFO] アップロード済ファイルID: " + createdFile.getId());
@@ -70,8 +55,6 @@ function uploadFile(data, name, deleteAfter) {
       createdFile.setTrashed(true);
       Logger.log("[INFO] JSONファイルを削除しました");
     }
-
-    ui.alert("フォーム作成完了");
 
   } catch (e) {
     ui.alert("[ERROR] アップロードまたはフォーム生成に失敗: " + e.message);
@@ -89,42 +72,13 @@ function showDirectJsonDialog() {
 function uploadFromText(jsonText, name, saveFlag) {
   const ui = SpreadsheetApp.getUi();
   let createdFile = null;
-  let targetFolder = null;
 
   try {
     // JSON 妥当性チェック
     JSON.parse(jsonText);
 
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-    const folderName = sheet.getRange("B1").getValue();
-
-    // ①B1フォルダを試す
-    if (folderName) {
-      try {
-        const folders = DriveApp.getFoldersByName(folderName);
-        if (folders.hasNext()) {
-          targetFolder = folders.next();
-          Logger.log("[INFO] B1指定フォルダ使用: " + folderName);
-        }
-      } catch (e) {
-        Logger.log("[WORN] B1フォルダアクセス不可: " + e.message);
-      }
-    } else {
-      Logger.log("[WORN] B1フォルダ名未入力");
-    }
-
-    // ②fallback: Spreadsheetと同一フォルダ
-    if (!targetFolder) {
-      const ssFile = DriveApp.getFileById(
-        SpreadsheetApp.getActiveSpreadsheet().getId()
-      );
-      const parents = ssFile.getParents();
-      if (!parents.hasNext()) {
-        throw new Error("スプレッドシートの親フォルダが取得できません");
-      }
-      targetFolder = parents.next();
-      Logger.log("[INFO] fallback: スプレッドシートと同一フォルダ使用");
-    }
+    const targetFolder = DriveApp.getRootFolder();
+    Logger.log("[INFO] My Drive 直下に出力します");
 
     const blob = Utilities.newBlob(jsonText, "application/json", name);
 
@@ -142,8 +96,6 @@ function uploadFromText(jsonText, name, saveFlag) {
       Logger.log("[INFO] 一時JSONを削除しました");
     }
 
-    ui.alert("フォーム作成完了（直接入力）");
-
   } catch (e) {
     ui.alert("[ERROR] JSON解析またはフォーム生成失敗: " + e.message);
     Logger.log("[ERROR] " + e.stack);
@@ -151,56 +103,54 @@ function uploadFromText(jsonText, name, saveFlag) {
 }
 
 /**
- * B1セルで指定したフォルダ内の .json を列挙
+ * マイドライブ直下の .json を列挙
  */
 function getJsonFileList() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  const folderName = sheet.getRange("B1").getValue();
   const ui = SpreadsheetApp.getUi();
-
-  if (!folderName) {
-    ui.alert("[ERROR] フォルダ名がB1セルに設定されていません");
-    return;
-  }
-
-  const folders = DriveApp.getFoldersByName(folderName);
-  if (!folders.hasNext()) {
-    ui.alert("[ERROR] フォルダ '" + folderName + "' が見つかりません");
-    return;
-  }
-
-  const folder = folders.next();
+  const folder = DriveApp.getRootFolder(); // 実行ユーザーのマイドライブ直下
   const files = folder.getFiles();
+
   const fileList = [];
 
   while (files.hasNext()) {
     const file = files.next();
     const fileName = file.getName();
+
+    if (!fileName) {
+      Logger.log("[WARN] 無名ファイルを検出、スキップしました");
+      continue;
+    }
+
     if (fileName.toLowerCase().endsWith(".json")) {
-      fileList.push({ id: file.getId(), name: fileName });
+      fileList.push({
+        id: file.getId(),
+        name: fileName,
+      });
     }
   }
 
   if (fileList.length === 0) {
-    Logger.log("[WORN] 対象の.jsonファイルが見つかりませんでした");
-    ui.alert("[WORN] 対象の.jsonファイルが見つかりませんでした");
+    Logger.log("[WARN] マイドライブ直下に JSON ファイルがありません");
+    ui.alert("[WARN] マイドライブ直下に JSON ファイルがありません");
   }
 
   return fileList;
 }
+
 
 /**
  * 指定した Drive の JSON からフォームを生成
  */
 function createFormFromDriveFile(fileId) {
   const ui = SpreadsheetApp.getUi();
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  sheet.getRange("B2").setValue("");
 
   let form = null;
   let createdFormId = null;
 
   try {
+    // 作成中インジケータを表示（後続の結果ダイアログで上書きされる）
+    showProgressDialog();
+
     const file = DriveApp.getFileById(fileId);
     const jsonText = file.getBlob().getDataAsString();
     const data = JSON.parse(jsonText);
@@ -345,10 +295,15 @@ function createFormFromDriveFile(fileId) {
       }
     });
 
-    ui.alert("作成完了");
-    if (form.getEditUrl()) {
-      sheet.getRange("B2").setValue(form.getEditUrl());
-    }
+    // 作成結果を通知（ファイル名・編集URL・回答URL を表示）
+    const editUrl = form.getEditUrl();
+    const publishedUrl = (typeof form.getPublishedUrl === "function" && form.getPublishedUrl()) || "";
+    const formFileName = (createdFormId && DriveApp.getFileById(createdFormId).getName()) || data.title || "新規フォーム";
+    showFormResultDialog({
+      fileName: formFileName,
+      editUrl: editUrl || "なし",
+      publishedUrl: publishedUrl || "未公開"
+    });
   } catch (e) {
     SpreadsheetApp.getUi().alert("[ERROR] エラー: " + e.message);
     Logger.log("[ERROR] " + e.stack);
@@ -359,12 +314,53 @@ function createFormFromDriveFile(fileId) {
         DriveApp.getFileById(createdFormId).setTrashed(true);
       } catch (ignore) {}
     }
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-    sheet.getRange("B2").setValue("出力失敗");
   }
 }
 
 /* ---------------- ヘルパー群 ---------------- */
+
+/** 作成中であることを示す簡易ダイアログを表示。次のダイアログで上書きされる想定。 */
+function showProgressDialog() {
+  const html = HtmlService.createHtmlOutput(
+    '<div style="font-family:Arial, sans-serif; font-size:13px; line-height:1.6;">' +
+      '<p><strong>フォームを作成中です...</strong></p>' +
+      '<div style="display:flex;align-items:center;gap:8px;">' +
+        '<div style="width:14px;height:14px;border:2px solid #999;border-top-color:#4285f4;border-radius:50%;animation:spin 0.9s linear infinite;"></div>' +
+        '<span>しばらくお待ちください</span>' +
+      '</div>' +
+      '<style>@keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}</style>' +
+    '</div>'
+  )
+    .setWidth(300)
+    .setHeight(160);
+
+  SpreadsheetApp.getUi().showModalDialog(html, "作成中");
+}
+
+/**
+ * 作成結果を表示し、OK ボタンでフォームを開くダイアログを出す。
+ * window.open をボタンクリックで実行することでポップアップブロックを避ける。
+ */
+function showFormResultDialog(params) {
+  const fileName = params.fileName || "新規フォーム";
+  const editUrl = params.editUrl || "";
+  const publishedUrl = params.publishedUrl || "";
+
+  const html = HtmlService.createHtmlOutput(
+    '<div style="font-family:Arial, sans-serif; font-size:13px; line-height:1.6;">' +
+      '<p><strong>作成完了</strong></p>' +
+      '<p>ファイル名: ' + fileName + '<br>' +
+      '編集URL: ' + (editUrl ? '<a href="' + editUrl + '" target="_blank">' + editUrl + '</a>' : 'なし') + '<br>' +
+      '回答URL: ' + (publishedUrl ? '<a href="' + publishedUrl + '" target="_blank">' + publishedUrl + '</a>' : '未公開') + '<br>' +
+      '</p>' +
+      '<p><button onclick="google.script.host.close();">OK</button></p>' +
+    '</div>'
+  )
+    .setWidth(640)
+    .setHeight(240);
+
+  SpreadsheetApp.getUi().showModalDialog(html, "作成結果");
+}
 
 /**
  * choicesDef が

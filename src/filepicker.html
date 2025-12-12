@@ -11,20 +11,38 @@
     <script>
       function createForm() {
         const fileId = document.getElementById("fileList").value;
-        google.script.run.createFormFromDriveFile(fileId);
+        if (!fileId) {
+          alert("JSONファイルが選択されていません");
+          return;
+        }
+        google.script.run
+          .withFailureHandler(err => alert("フォーム作成に失敗しました: " + (err && err.message ? err.message : err)))
+          .createFormFromDriveFile(fileId);
         google.script.host.close();
       }
 
       // ドライブ内のファイル一覧を取得
-      google.script.run.withSuccessHandler(files => {
-        const select = document.getElementById("fileList");
-        files.forEach(f => {
-          const option = document.createElement("option");
-          option.value = f.id;
-          option.text = f.name;
-          select.appendChild(option);
-        });
-      }).getJsonFileList();
+      google.script.run
+        .withSuccessHandler(files => {
+          const list = Array.isArray(files) ? files : [];
+          if (list.length === 0) {
+            alert("マイドライブ直下に .json が見つかりませんでした。");
+            google.script.host.close();
+            return;
+          }
+          const select = document.getElementById("fileList");
+          list.forEach(f => {
+            const option = document.createElement("option");
+            option.value = f.id;
+            option.text = f.name;
+            select.appendChild(option);
+          });
+        })
+        .withFailureHandler(err => {
+          alert("ファイル一覧の取得に失敗しました: " + (err && err.message ? err.message : err));
+          google.script.host.close();
+        })
+        .getJsonFileList();
     </script>
   </body>
 </html>

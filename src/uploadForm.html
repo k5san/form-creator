@@ -35,7 +35,9 @@
         reader.onload = function(e) {
           google.script.run
             .withSuccessHandler(() => google.script.host.close())
-            .withFailureHandler(err => alert("エラー: " + err.message))
+            .withFailureHandler(err => {
+              alert("アップロードまたはフォーム作成に失敗しました: " + (err && err.message ? err.message : err));
+            })
             .uploadFile(e.target.result, file.name, deleteAfter);
         };
 
